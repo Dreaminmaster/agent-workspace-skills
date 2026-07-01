@@ -1,0 +1,122 @@
+version: 1
+name: conversation-workspace-policy
+summary: Token-efficient policy for conversation workspace creation, loading, retention, cleanup, and deletion.
+
+runtime_prompt_rule: >-
+  Ordinary chat does not create a workspace. Only file, code, generated artifact,
+  long-running task, delete, restore, archive, or cleanup requests trigger
+  workspace policy. When triggered, load only the relevant sections of
+  skills/conversation-workspace-lifecycle/SKILL.md.
+
+levels:
+  level_0:
+    name: no_workspace
+    create_workspace: false
+    load_skill: false
+    triggers:
+      - ordinary_chat
+      - simple_qna
+      - simple_explanation
+      - simple_advice
+      - simple_rewrite_without_persistence
+
+  level_1:
+    name: lightweight_note
+    create_workspace: false
+    create_note: true
+    load_skill: minimal_sections_only
+    triggers:
+      - save_short_idea
+      - save_prompt
+      - save_plan_summary
+      - save_discussion_note
+
+  level_2:
+    name: full_workspace
+    create_workspace: true
+    create_directories_lazily: true
+    load_skill: relevant_sections_only
+    triggers:
+      - user_uploaded_file
+      - analyze_file
+      - modify_file
+      - convert_file
+      - generate_downloadable_artifact
+      - write_code
+      - modify_code
+      - run_code
+      - debug_project
+      - package_application
+      - release_artifact
+      - browser_automation
+      - command_logs
+      - environment_diagnostics
+      - long_running_task
+      - resume_task
+      - delete_conversation_with_files
+      - cleanup_workspace
+      - restore_workspace
+
+directory_creation:
+  input_files: create_only_when_user_uploads_or_provides_files
+  working_files: create_only_for_code_or_editable_working_copies
+  generated_files: create_only_for_final_outputs
+  reports: create_only_for_analysis_validation_debug_packaging_or_release_reports
+  logs: create_only_when_commands_or_tools_are_executed
+  temp: create_only_when_temporary_processing_is_needed
+
+retention:
+  never_auto_delete:
+    - input_files
+    - generated_files
+    - reports
+    - artifacts
+    - manifest.json
+    - index.sqlite
+    - index.json
+    - important_true_files
+  safe_to_auto_clean:
+    - temp
+    - cache
+    - unimportant_old_logs
+    - unimportant_old_working_files
+    - empty_directories
+    - empty_discarded_workspaces
+
+confirmation_required:
+  - permanent_workspace_delete
+  - delete_user_uploaded_files
+  - delete_generated_files
+  - delete_artifacts
+  - delete_reports
+  - overwrite_final_artifacts
+  - delete_important_true_files
+  - clear_entire_workspace
+
+section_loading:
+  upload_file:
+    - workspace_levels
+    - input_files
+    - manifest
+  generate_artifact:
+    - generated_files
+    - artifacts
+    - manifest
+  delete_conversation:
+    - delete_archive_trash
+    - confirmation
+    - retention
+  restore_task:
+    - global_index
+    - manifest
+    - restore_resume
+  cleanup_workspace:
+    - cleanup_policy
+    - safety_privacy
+  code_debug_package:
+    - level_2
+    - working_files
+    - logs
+    - reports
+    - generated_files
+    - artifacts
