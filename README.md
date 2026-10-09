@@ -71,3 +71,9 @@ examples/minimal-runtime-prompt.md
 Do not auto-delete user uploads, final generated files, reports, artifacts, manifests, indexes, or files marked `important=true`.
 
 Permanent deletion must require a preview and explicit user confirmation.
+
+## Canvas LMS Student Skill
+
+New skill: [Canvas LMS Study Assistant](skills/canvas-lms-study-assistant/SKILL.md).
+
+Requires a private, authorized Canvas MCP connector; includes setup and prompt documentation. Never store access tokens in the repository.
