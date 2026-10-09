@@ -18,13 +18,13 @@ Canvas API documentation: https://canvas.instructure.com/doc/api/file.oauth.html
 
 ## 2. Test the upstream open-source MCP locally
 
-The October 2026 local prototype used the open-source `canvas-mcp` package (version 1.12.0). The upstream project has its own documentation and newer versions may differ.
+Use the latest upstream security-maintained release. As verified on 2026-10-10, the latest GitHub release was v1.14.0 (published 2026-10-08). Earlier local configurations can differ; do not infer the installed version from this guide.
 
 ```bash
 mkdir canvas-mcp-test && cd canvas-mcp-test
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install 'canvas-mcp==1.12.0'
+python -m pip install 'canvas-mcp==1.14.0'
 ```
 
 Create a local `.env` **outside version control**, using `examples/canvas.env.example` as a template:
@@ -72,6 +72,8 @@ A passing local test confirms token/API access **on that machine only**; it does
 | Mac off breaks access | The runtime still depends on the local Mac or tunnel; move runtime to a separately reachable always-on service and retest. |
 
 ## Security
+
+Upstream v1.13.0 introduced an explicit write-tool allowlist to address a security advisory. Use v1.13.0 or newer; the command above selects v1.14.0, verified as the current GitHub release on 2026-10-10. In HTTP deployments, keep write tools disabled, including unrestricted code execution; use read-only tools and check actual exposed operations. See the upstream release and security notes.
 
 Prefer a read-only connector or explicitly restrict exposed operations. Public repos must hold **only** placeholders and instructions. Credentials and user data belong in private secrets and remain revocable. Never publish an institution's copyrighted course content in bulk.
 
