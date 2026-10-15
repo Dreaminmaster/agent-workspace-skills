@@ -1,0 +1,15 @@
+{
+  "name": "usyd-canvas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dist && esbuild worker.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/server/index.js --minify"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

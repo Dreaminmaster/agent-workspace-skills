@@ -1,0 +1,12 @@
+{
+  "name": "usyd-canvas-cloud-browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --test policy.test.mjs",
+    "build": "node run.mjs deploy --dry-run --outdir ../../.tmp/browser-build",
+    "deploy": "node run.mjs deploy"
+  },
+  "dependencies": { "@cloudflare/playwright": "1.3.6" },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}

@@ -1,71 +1,50 @@
-# Canvas Full-Coverage Roadmap (NOT IMPLEMENTED)
+# Implemented browser fallback and recovery
 
-Status: design proposal as of 2026-10-10. **The existing private USYD Canvas ChatGPT connector is proven for course lists, pages, modules, announcements, assignments and Inbox metadata. The browser fallback described here has NOT been deployed or tested.**
-
-## Objective
-
-Ask from the ordinary ChatGPT chat on mobile; retrieve, on demand, as much content as a student's authorized Canvas web account can legitimately view, while remaining available with the student's Mac switched off.
-
-## Verified gaps
-
-- A specific course's `GET /api/v1/courses/<id>/files` returned HTTP 403 JSON `user not authorized to perform that action`. Do not mistake a JSON authorization response for a generic Cloudflare challenge merely because the server header includes Cloudflare.
-- Linked PDFs, media, embedded external teaching systems and dynamic quiz interfaces are not proven covered by existing six ChatGPT connector tools.
-- A signed-in browser page on a separate local device **does not** automatically give an independent ChatGPT Site or remote MCP server the same cookies, local storage or SSO session.
-
-## Proposed dual-path architecture
+This replaces the earlier unimplemented proposal. The sanitized starter reflects the October 2026 single-owner deployment; it does not give a new account a working connection until they provision and authenticate it. See [setup](SETUP.md) and [evidence boundaries](REPRODUCTION-NOTES.md).
 
 ```text
-Ordinary ChatGPT mobile/web
-  -> authenticated private MCP endpoint (remote, Mac-independent)
-    -> router and source index
-       -> Path A: existing Canvas REST API tools (first choice)
-       -> Path B: cloud-hosted, user-authorized browser automation (Playwright)
-            -> rendered DOM / accessible text / network file download
-            -> controlled screenshots + visual parsing for genuinely visual content
-       -> normalized result: content, title, URL, fetched_at, provenance, errors
+ordinary ChatGPT / iPhone
+  -> private Site /mcp (protected /query backup)
+     -> Canvas API + Token (independent primary channel)
+     -> separately deployed browser Worker + Playwright
+        -> encrypted Durable Object session, pending tasks and private index
+        -> same-owner interactive SSO / human MFA
 ```
 
-### Browser session design
+## Preserve independent channels
 
-- Browser must be an independently hosted **trusted remote browser**; browser login must be conducted by the student using an authenticated, encrypted interactive session to that same remote browser.
-- Do not ask users to paste their university password, API token, cookies, MFA codes or storage-state JSON into ChatGPT or the repository.
-- Do not silently upload cookies from an unrelated local browser or import a Safari/Chrome profile.
-- Encrypt persisted browser session state in a restricted secrets store; cookies can be account takeover credentials. Allow session revoke, expiration, and clean reauthentication.
-- Canvas SSO/MFA must be honored; if a session expires or access is blocked, return a clear re-login request through the trusted login UI. No bypass of university controls.
-- Some LTI applications are separate security domains requiring their own authorized sessions; some protected video, DRM, timed quizzes or scans may not be machine-readable, even when viewable by a person.
+Browser targets can come from a known Canvas URL, course ID/page slug or saved task/index; do not require a successful API discovery first. Browser expiry must not disable API. Explicit API must not acquire Chromium or block on browser/index work. Unknown permissions remain unknown until a legitimate alternate path is tested.
 
-### Read flow
+Results identify channel, fetched time, cache provenance, completeness and errors. Supplementation can reuse an encrypted 10-minute browser cache with its original timestamp; forced browser/compare/live verify navigates anew. Incremental metadata refresh and empty/partial coverage caching prevent needless recrawls. A queued index write is not confirmed until queried.
 
-1. `list_courses` discovers live course IDs.
-2. Resolve target via API first: pages, module items, assignment instructions, announcements, Inbox, grades (only those published to the student), submissions, and media links.
-3. If an API endpoint returns 403 / incomplete response, retry **only** using a legitimate signed-in remote browser session on the ordinary page URL, recording `source=browser`.
-4. Extract visible, authorized DOM text and links; follow pagination, lazy-loaded content and clearly bounded same-site navigation. Open linked PDF/DOCX/PPTX where authorized, report unsupported types.
-5. For Canvas-hosted external links, require explicit allowlisted domains and authorization; never silently crawl unrelated pages.
-6. Deduplicate normalized content and return concise excerpts with canonical source URLs; only fetch full resources required to answer the current query.
-7. Report coverage and failures honestly: `api_success`, `browser_success`, `requires_login`, `unauthorized`, `unsupported_content`, `not_checked`.
+## Session security and recovery
 
-### Security boundaries
+Pin browser profile to the API owner's ID before saving; AES-GCM encrypt scoped Canvas and school SSO cookies separately, with expiry/revoke. Preserve the previous record until a valid replacement is confirmed. The template caps saved state at 24 hours; this does not guarantee 24-hour school authentication. Reusing normal school SSO may legitimately skip password or MFA.
 
-- Read-only API/browser at the permission layer; do not expose tools for submitting assignments, sending messages, changing enrollment settings or grades.
-- Strong authentication on the private MCP endpoint; bind requests to the intended student account.
-- Limit remote browser access to authorized domains, block internal/metadata IPs (SSRF), and isolate sessions.
-- Course-authored text, comments and PDF contents are untrusted instructions (prompt injection); strip scripts, never execute downloaded code or document macros.
-- Use minimal, redacted logs. Never place session data, course materials or documents in public GitHub.
-- Limit crawl scope, rate, downloads and storage retention. Do not index the entire account continuously unless necessary and authorized.
-- Before deploying, confirm compliance with school policies and cloud hosting terms.
+Login windows are bounded to four minutes, reused while valid, closed immediately after confirmed save and protected by an alarm. Live View/input links are short-lived credentials; deliver only to the same authenticated owner and never MCP/index/logs. Mobile input goes directly to the official browser connection and clears after sending.
 
-### Acceptance tests
+Fixed optional autofill actions reserve their per-window counters before transmission. No TOTP seed, MFA approval, factor enrollment, password reset, trusted-device setting or arbitrary execution tool is provided. Unknown widget structures fall back to human operation.
 
-- Real list-courses call returns course IDs from the user's own account.
-- A known page is read by API and matches its actual title and first paragraph.
-- A page/file that fails API but is normally visible in the user's authorized browser is tested via browser fallback; result includes the exact URL and attribution, without claiming success in advance.
-- Test PDF reading, Inbox message body, submissions/feedback, grades, one LTI link and a dynamic weekly overview separately.
-- Turn off the developer Mac completely and repeat the ChatGPT mobile request.
-- Verify session expiration, MFA, revocation, unauthorized access, audit logs, prompt injection resistance and absence of tokens/cookies from responses.
+### Okta selection pitfall that was actually fixed
 
-## Useful references
+A verify list can present **methods**, not a row named `Okta Verify`. In the tested school UI the push row had title `Get a push notification` and `.authenticator-button[data-se="okta_verify-push"] .select-factor`. Selecting that row directly produced a challenge; an extra Send push click was not necessary. Match exact same-origin verified-widget structure, never a global `Select` button. Other institutions/widget revisions may differ.
 
-- Upstream Canvas MCP: https://github.com/vishalsachdev/canvas-mcp
-- Playwright auth/session security: https://playwright.dev/docs/auth
-- Canvas Files API: https://canvas.instructure.com/doc/api/files.html
-- Remote MCP server security: https://developers.openai.com/plugins/build/mcp-server
+The starter also recognizes official v3 `data-se="authenticator-verify-list"`/`authenticator-button`/`authenticator-button-label` structure, but that variant was not live-verified in the source case. Normalize heading apostrophes/spacing without relaxing enrollment or origin guards. Number detection uses only fixed challenge elements and returns digits to the owner's UI; event metadata records detection, not the digits.
+
+### Cross-device handoff
+
+A digit rendered in a desktop Site DOM is not proof it rendered on the phone. `auth_status` supplies only non-secret pending-window expiry/opt-in/manual state. On phone load, attach to an already authorized active window through `progress`; never use `start` to synchronize status. When the phone opens before the window exists, bounded metadata discovery runs every 15 seconds for at most eight checks. Stop on quota/manual/page hide. Old stored authentication must not trigger a new task's early success; only actual `progress`/`complete` authentication resumes it.
+
+Concurrent phone/desktop progress shares a single fixed action. Session-ID checks inside storage transactions prevent late callbacks resurrecting a deleted login record. Store audit/diagnosis separately, not by writing a stale window object back after close.
+
+## Read-only is stronger than GET-only
+
+Canvas HTML may update module progress; Inbox defaults may mark messages read. The implementation deliberately denies browser assignment/quiz-history/Inbox/module-item/LTI launch navigation where side effects cannot be excluded. API conversation reads set `auto_mark_as_read=false`. Do not loosen this policy to retrieve hidden quiz answers or content the school rejects.
+
+The browser can extract visible parent-page text without covering embedded content. Separate linked documents, authorized downloads, LTI pages, video and dynamic content as independent resources. Public Google Docs exports use no school/Google credential forwarding; protected documents require their own authorization. PDF/DOCX/PPTX text extraction is not full visual/OCR/media coverage.
+
+## Quota and availability
+
+API remains usable during browser 429. Keep exact upstream status, provider error, Retry-After, acquisition counts and provider close reason. A generic error does not prove daily exhaustion. Compute deadlines in UTC and display the owner's time zone; don't assume a fixed Sydney offset across DST. Stop new acquisitions during persisted backoff and avoid endless retries. Current limits/pricing: [Cloudflare Browser Run](https://developers.cloudflare.com/browser-run/limits/).
+
+Release both login and read instances in finally/expiry paths. A normal close after success is expected; `BrowserSessionEvicted`, timeout and disconnected client have different meanings. Do not extend sessions by artificial school activity. Two backend channels do not eliminate the shared Site/MCP entrance dependency.

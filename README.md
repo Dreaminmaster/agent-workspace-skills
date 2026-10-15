@@ -76,4 +76,4 @@ Permanent deletion must require a preview and explicit user confirmation.
 
 New skill: [Canvas LMS Study Assistant](skills/canvas-lms-study-assistant/SKILL.md).
 
-Requires a private, authorized Canvas MCP connector; includes setup and prompt documentation. Never store access tokens in the repository.
+Supports study queries through an authorized connector and reproducing a private ordinary-ChatGPT/iPhone integration. Includes a sanitized cloud starter, configuration script, independent API/browser design, mobile MFA recovery and verified limitations. Start with the skill’s [fast setup](skills/canvas-lms-study-assistant/references/SETUP.md). Never store access tokens or student data in this repository.

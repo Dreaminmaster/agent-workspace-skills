@@ -1,80 +1,82 @@
-# Connect Canvas LMS to ChatGPT: reproducible setup outline
+# Recreate a private Canvas integration
 
-> This document distinguishes the tested *student workflow* from infrastructure that each user must provision. Installing `SKILL.md` alone does not connect to Canvas.
+The starter is a sanitized copy of the implemented API/router/browser/mobile-recovery code, not a copy of any student's accounts. The source case was USYD; other schools require explicit SSO and domain-policy review.
 
-## Architecture
+## 1. Verify product support before development
 
-Canvas LMS account → Canvas REST API with personal token/OAuth → Canvas MCP service → always-on HTTPS MCP endpoint / private integration → ChatGPT plugin → this study skill.
+Use the available official Sites tools/skill and current OpenAI account capabilities. Confirm an owner-private Site and private MCP/plugin can be created and installed. Test `ping` in ordinary Chat and then on iPhone. A local MCP, Sites deployment or desktop invocation alone does not establish phone support. If the requested product route is unavailable, stop and report that boundary before building infrastructure.
 
-The authenticated student must have access to the Canvas items requested. API permissions, institutional policies, and any web access restrictions still apply.
+## 2. Prepare the new owner's configuration
 
-## 1. Create private credentials
-
-1. In your own Canvas account, open Account → Settings and find the Access Tokens / New Access Token controls (where your institution permits them).
-2. Create the minimum necessary token or OAuth authorization.
-3. Keep credentials in protected environment variables or a managed secret store. Never post a token, personal Canvas files, or `.env` in GitHub, screenshots, support chats or public logs.
-
-Canvas API documentation: https://canvas.instructure.com/doc/api/file.oauth.html
-
-## 2. Test the upstream open-source MCP locally
-
-Use the latest upstream security-maintained release. As verified on 2026-10-10, the latest GitHub release was v1.14.0 (published 2026-10-08). Earlier local configurations can differ; do not infer the installed version from this guide.
+Choose the new Site and browser-service HTTPS origins from actual platform results. Obtain the new student's Canvas profile ID through an authorized API read; the owner enters their Token directly in protected Secrets. Resource IDs are not passwords, but do not reuse the template's synthetic course IDs as real courses.
 
 ```bash
-mkdir canvas-mcp-test && cd canvas-mcp-test
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install 'canvas-mcp==1.14.0'
+python3 skills/canvas-lms-study-assistant/scripts/instantiate.py \
+  --output ./canvas-personal \
+  --site-origin https://YOUR-SITE.chatgpt.site \
+  --browser-origin https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev \
+  --canvas-user-id YOUR_NUMERIC_PROFILE_ID
 ```
 
-Create a local `.env` **outside version control**, using `examples/canvas.env.example` as a template:
+Output must be absent/empty. Arguments contain **no credentials**. Optional `--canvas-origin`, `--sso-origin` and `--account-id` are non-secret configuration. Do not point these at the source user's infrastructure. The copied `.openai/hosting.json` deliberately has no project ID: register a new owner-private Site once, then persist the exact returned ID via the supported Sites workflow. Keep or reuse an existing project ID only for that same authorized project.
 
-```dotenv
-CANVAS_API_URL=https://YOUR-SCHOOL.instructure.com/api/v1
-CANVAS_API_TOKEN=YOUR_PRIVATE_TOKEN
-```
+The Site Worker trusts the platform's authenticated-owner header. Deploy it through authenticated owner-private Sites dispatch; do **not** expose this worker as an arbitrary public server that accepts a caller-supplied identity header. The browser worker separately requires its service bearer key and pins a single owner. Multi-user hosting is outside this starter.
 
-Then validate with:
+## 3. Install local dependencies and run offline checks
 
 ```bash
-canvas-mcp-server --test
+cd canvas-personal
+npm ci
+npm --prefix cloud-browser ci
+node --test *.test.mjs cloud-browser/*.test.mjs
+npm run build
 ```
 
-A passing local test confirms token/API access **on that machine only**; it does not show ChatGPT can access the server remotely.
+All included fixtures are synthetic and these commands launch no real browser. `npm run build` produces `dist/server/index.js`. Register/package/publish it using the current native Sites Worker ESM workflow; do not manually guess opaque Site IDs. No global dependency installation is needed.
 
-## 3. Connect to ChatGPT
+## 4. Configure protected Secrets
 
-- ChatGPT requires a reachable remote MCP endpoint for the normal remote plugin flow; a local STDIO process alone is not an HTTPS server.
-- Deploy an always-on MCP service or a standards-compatible HTTPS bridge on a trusted host and safeguard credentials. Check the remote MCP transport and the expected `/mcp` endpoint.
-- Within a ChatGPT product/plan that supports custom MCP connections, follow its current add-custom-server flow. Add your own trusted HTTPS endpoint; review permissions; install the private connector; select it via `@` in a chat.
-- ChatGPT Plugins quickstart: https://developers.openai.com/plugins/build/app-quickstart
-- ChatGPT custom MCP app availability differs by plan/workspace: https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt
-
-**Important:** A working local client such as Cherry Studio does not mean ChatGPT web/mobile is connected. Likewise, a successful `ping` to your website does not verify access to Canvas itself.
-
-## 4. Verify real data
-
-1. Run `list_courses` and inspect the response; it must contain real course names and IDs.
-2. Run the connector's actual page-content operation on a known page; inspect returned `title` and full `body_text`/`body`.
-3. Test a second content type separately (assignments or announcements) before claiming it works.
-4. Confirm any promised phone or Mac-off workflow **with the development Mac fully offline**. An always-on hosting plan is not proof of a successful offline test.
-
-## Troubleshooting
-
-| Symptom | Interpretation / next action |
+| Host | Configuration |
 |---|---|
-| Tool not found | Check the plugin installation, selected connection, tool registration and name mapping. |
-| `ping` succeeds, course query fails | Transport works but the upstream API connection is not proven. Inspect the Canvas request path and authorization. |
-| HTTP 401 | Confirm the token/OAuth authorization privately and Canvas domain; avoid sharing secrets in chat. |
-| HTTP 403, Cloudflare, `Not Authorized` | The remote server/IP or permission path may be blocked. Review your institution's acceptable-use rules and approved access method. Do not bypass access controls. |
-| Page list works but content is blank | Call the dedicated full-page-content endpoint, not just a metadata/overview tool. |
-| Upcoming assignments list is empty | Inspect assignments without a due date, modules, announcements, and weekly overview pages. |
-| Mac off breaks access | The runtime still depends on the local Mac or tunnel; move runtime to a separately reachable always-on service and retest. |
+| Site | `CANVAS_API_TOKEN`, `OWNER_EMAIL`, `BROWSER_SERVICE_URL`, `BROWSER_SERVICE_KEY` |
+| Browser Worker | `SERVICE_KEY` matching Site's browser key; `STATE_KEY` (base64 32 random bytes, AES-GCM); `CANVAS_USER_ID` set to the owner's profile; `SESSION_TTL_HOURS` |
+| Optional browser autofill | `SSO_USERNAME`, `SSO_PASSWORD`, `SSO_AUTOFILL_ENABLED=1`, entered by the owner only |
 
-## Security
+Generate service/encryption keys in memory and insert them directly through an authorized secret-management flow. Never print them, place them in command arguments or commit them. Keep autofill disabled unless the owner explicitly wants server-side password storage. The owner always performs MFA.
 
-Upstream v1.13.0 introduced an explicit write-tool allowlist to address a security advisory. Use v1.13.0 or newer; the command above selects v1.14.0, verified as the current GitHub release on 2026-10-10. In HTTP deployments, keep write tools disabled, including unrestricted code execution; use read-only tools and check actual exposed operations. See the upstream release and security notes.
+Optional Secrets Store: account-level secrets are **not** automatically Worker bindings. Add three bindings with the exact variable/secret names and that owner's store ID; the code supports asynchronous `binding.get()`. If deployment fails with code 10021, inspect the actual role/scope/binding error before retrying. Request only additional authorization that is genuinely required; do not blindly refresh Wrangler with every available scope. See [Cloudflare binding documentation](https://developers.cloudflare.com/secrets-store/integrations/workers/).
 
-Prefer a read-only connector or explicitly restrict exposed operations. Public repos must hold **only** placeholders and instructions. Credentials and user data belong in private secrets and remain revocable. Never publish an institution's copyrighted course content in bulk.
+## 5. Deploy the independent browser component
 
-Upstream: https://github.com/vishalsachdev/canvas-mcp
+Review `cloud-browser/wrangler.jsonc`, institution domains in `policy.mjs`, exact SSO origin in `autofill.mjs`, and the fixed allowed Site/service origins. Account/store IDs in the source case were removed. Token/API queries must still work when the browser service is unavailable.
+
+```bash
+cd cloud-browser
+node run.mjs whoami
+node run.mjs deploy
+```
+
+The wrapper confines Wrangler state/logs to a workspace `.tmp` directory. Deployment config selects Browser Run and a SQLite Durable Object, with default manual SSO and no public course data. Workers deployment is not a browser acquisition. Confirm current provider plan/limits before real tests; do not purchase/upgrade without permission.
+
+## 6. Publish and connect the private Site
+
+Use native owner-private Sites save/deploy operations with the exact pushed source and matching build archive. Confirm the deployed version, private access and exposed `/mcp` tools. Install the private connector into the new user's ChatGPT account. Never reuse a source user's plugin/project URL.
+
+Keep the small MCP interface (`list_courses`, `get_course_content`, `get_assignments`, `read_file`, `get_messages`, `auth_status` and a transport ping). `channel=api|browser|auto|compare` chooses provenance without needing two user-facing connectors. Protected `/query` is a backup for MCP transport failure, but shares Site hosting/identity and is not an independent availability guarantee.
+
+## 7. Real mobile login and task recovery
+
+Before spending a login window, confirm the owner is ready to approve their school request. Open the private Site on the phone; **opening the Site is not MFA approval**. Use one controlled login start, at most a second when specifically justified. On 429 stop immediately and save the real error/Retry-After.
+
+The explicit automatic-login button reuses authorized SSO where permitted, otherwise fills recognized forms and selects Okta push; unknown forms retain manual input. A phone opened before another client starts login discovers the existing window through bounded metadata checks. It polls only that window, never starts another browser or repeats password/push actions. Challenge digits remain in the owner's UI, outside MCP/status/audit/storage.
+
+Require a new Canvas profile verification/save timestamp, confirmed remote close, then a separate restored browser read. If a pending task ID was supplied, check its persisted arguments and transition. Dynamic placeholders remain partial. Verify ordinary iPhone Chat independently and, if Mac-off operation is promised, test it with the Mac actually shut down.
+
+## Quick failure guide
+
+- API 401: recover/revoke Token through the owner; do not delete browser state.
+- API JSON 403: actual permission denial; a Cloudflare response header alone does not prove a WAF block.
+- Stored session but live login required: compare actual restore/profile results, expiry, pinned identity and encrypted-state lifecycle; do not label stored state healthy.
+- Remote view disconnected: distinguish successful explicit close, expiry and provider eviction using timestamps. Never automatically restart a 4-minute window.
+- `Rate limit exceeded`: preserve exact evidence; generic 429 can mean rate/capacity/quota. The explicit daily-time error is different. See [current limits](https://developers.cloudflare.com/browser-run/limits/).
+- No phone number/request: verify same-owner window attachment and the owner's actual UI; backend `challenge_detected` does not prove delivery. Do not blindly resend push.

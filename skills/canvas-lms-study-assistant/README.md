@@ -1,20 +1,13 @@
 # Canvas LMS Study Assistant
 
-An original, **read-only instruction skill** for AI assistants that already have a trusted Canvas LMS MCP connection. It guides real-time course discovery, full-page reading, academic task checks, error reporting and privacy-safe verification.
+Read authorized Canvas material or recreate a private ordinary-ChatGPT/iPhone integration using independent API and cloud-browser channels, with human MFA and task recovery.
 
-**Not a Canvas API client. Not a hosted MCP server. Not a one-click ChatGPT connector.**
+- [Skill entrypoint](SKILL.md): study mode and build/recovery mode.
+- [Fast setup](references/SETUP.md): sanitized executable starter, owner Secrets and private deployment.
+- [Browser architecture and fixes](references/BROWSER-FALLBACK-ROADMAP.md): the implemented replacement for the original proposal.
+- [Real results and limits](references/REPRODUCTION-NOTES.md): honest acceptance boundaries.
+- [Student prompts](references/PROMPTS.md).
 
-- Start with [SKILL.md](SKILL.md).
-- Follow the [setup and troubleshooting guide](references/SETUP.md).
-- Copy the [student prompt examples](references/PROMPTS.md).
-- Use [credential placeholders](examples/canvas.env.example), never real secrets.
+Installing a skill does not grant Canvas access or provision a ChatGPT plugin. Each owner must verify product availability, create their own private infrastructure and authenticate with their school. The starter is single-owner, read-only and uses synthetic test fixtures. It contains no production account state or course material.
 
-### Tested operation
-
-A private test on 2026-10-10 returned four accessible courses and the complete body text/HTML of a week-overview page. This does **not** establish that every Canvas feature works or that a computer-off scenario has been tested.
-
-### Credits
-
-Upstream open-source MCP project: https://github.com/vishalsachdev/canvas-mcp
-
-Skill format: https://agentskills.io/specification
+Example request: “Use $canvas-lms-study-assistant to recreate my private Canvas connector for ordinary iPhone ChatGPT. Verify the account route first, then instantiate the cloud starter and complete real API, browser and human-MFA acceptance.”
