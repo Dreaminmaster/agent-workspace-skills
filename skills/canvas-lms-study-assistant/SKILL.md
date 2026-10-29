@@ -31,6 +31,8 @@ Read [SETUP](references/SETUP.md) for the shortest reproducible path. It uses th
 6. Back up the current version and record a usable rollback before modifying a deployed service. Publish only to the authorized audience; never ship the starter with fabricated credentials or a copied user's IDs.
 7. Distinguish implementation/build checks from real acceptance. Use the evidence matrix in [reproduction notes](references/REPRODUCTION-NOTES.md).
 
+For a course-generic SRES and multi-source upgrade, read [universal sources](references/UNIVERSAL-SOURCES.md). It documents the wired starter and the unverified PebblePad/Notion interfaces; installing the skill does not connect those services.
+
 For browser/session implementation, mobile handoff and the known Okta selection pitfall, read [browser architecture](references/BROWSER-FALLBACK-ROADMAP.md).
 
 ## Deliver accurately

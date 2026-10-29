@@ -1,4 +1,4 @@
-import { routedTools, authTool, query } from './router.mjs';
+import { routedTools, sourceTools, authTool, query } from './router.mjs';
 import { browserRoute, browserService, fallbackTarget, indexRead } from './browser.mjs';
 
 const pingTool = {
@@ -23,13 +23,13 @@ export default {
       case 'initialize':
         result = { protocolVersion: message.params?.protocolVersion || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'Canvas Study', version: '0.5.1' } }; break;
       case 'ping': result = {}; break;
-      case 'tools/list': result = { tools: [pingTool, authTool, ...routedTools] }; break;
+      case 'tools/list': result = { tools: [pingTool, authTool, ...sourceTools, ...routedTools] }; break;
       case 'tools/call':
         if (message.params?.name === 'ping') {
           result = { content: [{ type: 'text', text: JSON.stringify({ marker: 'CANVAS_STUDY_PING_OK', utc: new Date().toISOString(), canvasTokenConfigured: Boolean(env.CANVAS_API_TOKEN) }) }] };
         } else {
           if (!env.OWNER_EMAIL || request.headers.get('oai-authenticated-user-email')?.toLowerCase() !== env.OWNER_EMAIL.toLowerCase()) return new Response('Owner identity required', { status: 403 });
-          if (![authTool,...routedTools].some(t => t.name === message.params?.name)) return Response.json({ jsonrpc:'2.0',id:message.id,error:{code:-32602,message:'Unknown tool'} });
+          if (![authTool,...sourceTools,...routedTools].some(t => t.name === message.params?.name)) return Response.json({ jsonrpc:'2.0',id:message.id,error:{code:-32602,message:'Unknown tool'} });
           try {
             const data = await query(message.params.name,message.params.arguments||{},env);
             result = {isError:data.status==='unavailable',content:[{type:'text',text:JSON.stringify(data)}]};

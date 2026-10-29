@@ -41,4 +41,17 @@ Before login, prepare a known permitted page/task and ensure the owner is actual
 7. Owner phone observes number/request and completes MFA; record human observation separately from browser detection. Do not capture numbers/passwords.
 8. Mac-off and restart persistence only PASS when actually exercised; architecture/source tests are separate evidence.
 
-The sanitized starter's offline checks verify 55 engineering invariants. They use fictional data, never provision cloud services or authenticate a school. Passing them is not a successful new student's connection. For current quota values/reset distinctions use [official limits](https://developers.cloudflare.com/browser-run/limits/), not source-case timestamps.
+The sanitized starter's offline checks verify 63 engineering invariants after the v43 update. They use fictional data, never provision cloud services or authenticate a school. Passing them is not a successful new student's connection. For current quota values/reset distinctions use [official limits](https://developers.cloudflare.com/browser-run/limits/), not source-case timestamps.
+
+
+## v43 integration evidence, 2026-10-29
+
+The original owner-private Site and separately deployed browser Worker were updated from recovered authoritative source, preserving the MCP identity, Token, index and encrypted state. Production deployment succeeded; a post-deployment MCP API query still returned real courses. This establishes deployment and API regression, not full third-party access.
+
+- Generic Student Portal: the actual course page navigation returned HTTP 403 before SRES content could be read. Do not infer whether this is school permission, session expiry or another restriction solely from that response.
+- Selected PDF: both API download paths returned HTTP 406. The independent browser download attempt stopped because it could not confirm the owner profile; no PDF bytes or extracted body were obtained. The follow-up diagnostic distinguishes identity-check HTTP rejection from proven SSO expiry.
+- The legacy report lookup remained callable and returned its normal expired-cache state; no new grade-view navigation was used as a regression test.
+- PebblePad needs a verified separately authenticated owner-workspace adapter. Notion needs an eligible request-scoped Site binding; a connector installed in the client is not such a binding. Both remain explicitly unconnected.
+- This update did not repeat phone login, MFA or Mac-off acceptance. Earlier phone evidence does not prove new source coverage.
+
+See [universal sources](UNIVERSAL-SOURCES.md) for wiring and stopping conditions. The private production checkout passed 86 checks; the sanitized starter passed 63. These are offline engineering checks with synthetic data, not successful reads of the blocked resources.

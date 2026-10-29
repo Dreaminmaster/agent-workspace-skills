@@ -1,6 +1,6 @@
 export const CANVAS = 'https://canvas.sydney.edu.au';
 export const LOGIN_DOMAINS = ['canvas.sydney.edu.au', 'sso.sydney.edu.au', 'sso.canvaslms.com', '*.oktacdn.com'];
-export const STATIC_DOMAINS = ['du11hjcvx0uqb.cloudfront.net', 'd1embgbpmfo5b.cloudfront.net', 'instructure-uploads-apse2.s3.ap-southeast-2.amazonaws.com'];
+export const STATIC_DOMAINS = ['du11hjcvx0uqb.cloudfront.net', 'd1embgbpmfo5b.cloudfront.net', 'instructure-uploads-apse2.s3.ap-southeast-2.amazonaws.com', 'instructure-uploads-apse2.s3.ap-southeast-2.amazonaws.com'];
 export const READ_DOMAINS = ['canvas.sydney.edu.au', '*.instructure.com', '*.inscloudgate.net', '*.canvas-user-content.com', ...STATIC_DOMAINS];
 const numeric = n => {
   if (!Number.isSafeInteger(n) || n < 1) throw new Error('invalid_target');

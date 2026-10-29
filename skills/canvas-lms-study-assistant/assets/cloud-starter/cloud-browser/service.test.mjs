@@ -73,3 +73,8 @@ test('legacy challenge-detected flag never becomes claimed phone display or deli
  const ctx=context();await ctx.storage.put('autofill_event',{status:'mfa_required',challenge_displayed:true});
  const result=await new OwnerState(ctx,env).autofillStatus();assert.equal(result.challenge_detected,true);assert.equal(result.challenge_displayed,undefined);assert.equal(result.phone_display,'unverified');assert.equal(result.phone_delivery,'unverified');
 });
+
+test('new source route executes through the existing outer queue without waiting on itself',async()=>{
+ const service=new OwnerState(context(),{...env,BROWSER:{fetch:async()=>new Response('synthetic blocked provider',{status:503})}});await service.persist(syntheticContext,true);
+ let timer;try{const response=await Promise.race([service.fetch(new Request('https://service.invalid/v1/sources/student-portal',{method:'POST',body:JSON.stringify({course_id:101,consent:true,fresh:true})})),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Queue deadlock')),500);})]);assert.equal((await response.json()).status,'browser_error');}finally{clearTimeout(timer);}
+});

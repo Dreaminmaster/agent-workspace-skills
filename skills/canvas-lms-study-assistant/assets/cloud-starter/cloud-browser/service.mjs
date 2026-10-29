@@ -1,3 +1,5 @@
+import {readStudentPortal} from './student-portal.mjs';
+import {downloadOwnerFile} from './file-download.mjs';
 import {configuredAutofill,advanceAutofill,schoolFormProfile} from './autofill.mjs';
 import { usableCachedRead,cachedResult } from './cache.mjs';
 import { sessionStatus, retryDeadline } from './session.mjs';
@@ -7,7 +9,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { acquire, connect, launch, limits, history } from '@cloudflare/playwright';
 import { CANVAS, LOGIN_DOMAINS, READ_DOMAINS, scopedSSOCookies, targetURL, permittedReadRequest, seal, unseal, base64 } from './policy.mjs';
 
-const reply = (data, status = 200) => Response.json({ ...data, runtime_version: '2026-10-14-recovery-r16-window-discovery' }, { status, headers: { 'Cache-Control': 'no-store' } });
+const reply = (data, status = 200) => Response.json({ ...data, runtime_version: 'v43-universal-starter' }, { status, headers: { 'Cache-Control': 'no-store' } });
 async function authorized(request, expected) {
   if (!expected || !request.headers.get('Authorization')?.startsWith('Bearer ')) return false;
   const hash = async s => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
@@ -380,6 +382,8 @@ export class OwnerState extends DurableObject {
         case '/v1/tasks/get': return reply(await getTask(this.ctx.storage,this.env.STATE_KEY,data.id));
         case '/v1/tasks/update': return reply(await updateTask(this.ctx.storage,this.env.STATE_KEY,data.id,data.status));
         case '/v1/revoke': await this.closeLogin(); await this.invalidateSession('owner_revoked'); return reply({ status: 'revoked' });
+        case '/v1/sources/student-portal': return reply(await readStudentPortal(this,data));
+        case '/v1/files/download': return reply(await downloadOwnerFile(this,data));
         case '/v1/read': return await this.read(data);
         case '/v1/audit': return reply({ events: await this.ctx.storage.get('audit') || [] });
         case '/v1/health': {

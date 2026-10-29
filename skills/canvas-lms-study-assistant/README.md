@@ -6,6 +6,7 @@ Read authorized Canvas material or recreate a private ordinary-ChatGPT/iPhone in
 - [Fast setup](references/SETUP.md): sanitized executable starter, owner Secrets and private deployment.
 - [Browser architecture and fixes](references/BROWSER-FALLBACK-ROADMAP.md): the implemented replacement for the original proposal.
 - [Real results and limits](references/REPRODUCTION-NOTES.md): honest acceptance boundaries.
+- [v43 universal sources](references/UNIVERSAL-SOURCES.md): implemented registry, generic portal and attachment paths, with actual acceptance limits.
 - [Student prompts](references/PROMPTS.md).
 
 Installing a skill does not grant Canvas access or provision a ChatGPT plugin. Each owner must verify product availability, create their own private infrastructure and authenticate with their school. The starter is single-owner, read-only and uses synthetic test fixtures. It contains no production account state or course material.

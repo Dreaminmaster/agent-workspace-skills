@@ -1,4 +1,5 @@
-import { readPublicGoogleDocument } from './files.mjs';
+import {sourceTools,sourceQuery} from './sources.mjs';
+import { readPublicGoogleDocument,extractAttachmentBytes } from './files.mjs';
 import { compareContent } from './compare.mjs';
 import { canvasTools, callCanvas, apiHealth } from './canvas.mjs';
 import { browserService, fallbackTarget, indexRead } from './browser.mjs';
@@ -10,6 +11,7 @@ const refreshTimes = new Map();
 const timings = [];
 const inFlight = new Map();
 let reusedRequests=0, searchRequests=0, searchRefreshHits=0;
+export {sourceTools};
 export function safeData(value) {
   if (Array.isArray(value)) return value.map(safeData);
   if (value && typeof value==='object') return Object.fromEntries(Object.entries(value).filter(([k])=>!/(?:secure_params|validation_token|access_code|live_url|cookie|authorization|password|session_id)/i.test(k)).map(([k,v])=>[k,safeData(v)]));
@@ -34,7 +36,7 @@ function validate(name,args) {
 export async function health(args,env) {
   const [api,browser]=await Promise.all([apiHealth(env).catch(apiDiagnosis),args.verify_browser?browserService(env,'/v1/read',{kind:'courses'}):browserService(env,'/v1/status')]);
   const diagnostics=args.diagnostics?{site_runtime:{entrypoint:'Cloudflare Worker fetch',dom_available:typeof globalThis.document!=='undefined',browser_binding_available:typeof env.BROWSER?.fetch==='function',native_chromium_executable_configured:false,storage:'Browser session and encrypted private index reside in separately deployed Cloudflare Durable Object'},browser_runtime:await browserService(env,'/v1/health')}:undefined;
-  return {site_release:'2026-10-14-recovery-r16-window-discovery',diagnostics,api,browser: args.verify_browser ? {status:browser.status,source:browser.source,source_url:browser.source_url,fetched_at:browser.fetched_at,course_count:browser.count,authentication_state:browser.authentication_state,last_verified_at:browser.last_verified_at,credentials_saved:browser.credentials_saved,reason:browser.reason,retry_at:browser.retry_at} : safeData(browser),browser_check:args.verify_browser?'live_navigation':'stored_session_only',api_token_changed:false,login_url:'https://canvas-study.example.chatgpt.site/browser',checked_at:new Date().toISOString(),metrics:{sample_count:timings.length,success_count:timings.filter(t=>t.success).length,p50_ms:quantile(.5),p95_ms:quantile(.95),deduplicated_requests:reusedRequests,index_refresh_hit_rate:searchRequests?searchRefreshHits/searchRequests:null,scope:'Last 100 requests in this Site isolate; not durable service-wide telemetry.'},single_point_of_failure:'MCP and protected /query share the Site hosting and identity layer. Browser runtime is separately deployed; two channels do not eliminate the Site entrance dependency.'};
+  return {site_release:'2026-10-29-v43-universal',diagnostics,api,browser: args.verify_browser ? {status:browser.status,source:browser.source,source_url:browser.source_url,fetched_at:browser.fetched_at,course_count:browser.count,authentication_state:browser.authentication_state,last_verified_at:browser.last_verified_at,credentials_saved:browser.credentials_saved,reason:browser.reason,retry_at:browser.retry_at} : safeData(browser),browser_check:args.verify_browser?'live_navigation':'stored_session_only',api_token_changed:false,login_url:'https://canvas-study.example.chatgpt.site/browser',checked_at:new Date().toISOString(),metrics:{sample_count:timings.length,success_count:timings.filter(t=>t.success).length,p50_ms:quantile(.5),p95_ms:quantile(.95),deduplicated_requests:reusedRequests,index_refresh_hit_rate:searchRequests?searchRefreshHits/searchRequests:null,scope:'Last 100 requests in this Site isolate; not durable service-wide telemetry.'},single_point_of_failure:'MCP and protected /query share the Site hosting and identity layer. Browser runtime is separately deployed; two channels do not eliminate the Site entrance dependency.'};
 }
 function quantile(p){const a=timings.map(t=>t.ms).sort((a,b)=>a-b);return a.length?a[Math.ceil(a.length*p)-1]:null;}
 async function search(args,env) {
@@ -58,6 +60,7 @@ async function search(args,env) {
 }
 async function queryOnce(name,args,env) {
   if(name==='auth_status') { if(args && (Object.keys(args).some(k=>!['verify_browser','diagnostics'].includes(k)) || Object.entries(args).some(([k,v])=>typeof v!=='boolean'))) throw Error('Unsupported health arguments.'); return health(args||{},env); }
+  if(sourceTools.some(t=>t.name===name))return safeData(await sourceQuery(name,args,env));
   validate(name,args);
   const start=Date.now(),channel=args.channel||'auto', target=fallbackTarget(name,args);
   let apiResult, browserResult, apiState={status:'not_attempted'},browserState={status:'not_attempted'};
@@ -68,7 +71,16 @@ async function queryOnce(name,args,env) {
   const emptyBody=target?.kind==='page'&&apiResult&&typeof apiResult.body_text==='string'&&!apiResult.body_text.trim()&&!apiResult.locked_for_user;
   const embeddedFile=apiResult?.resources?.some(r=>r.type==='iframe'&&r.file_id&&!r.external);
   if(channel==='browser'||channel==='compare'||(channel==='auto'&&(!apiResult||emptyBody||embeddedFile))) {
-    if(target) {browserResult=await browserService(env,'/v1/read',{...target,cache_ok:channel==='auto'});browserState={status:browserResult.status,reason:browserResult.reason,retry_at:browserResult.retry_at};}
+    if(target) {
+      if(name==='read_file'&&!args.conversation_id&&!args.group_id){
+        const downloaded=await browserService(env,'/v1/files/download',{course_id:args.course_id,file_id:args.file_id});
+        if(downloaded.status==='file_downloaded'){
+          try{if(typeof downloaded.binary_base64!=='string'||downloaded.binary_base64.length>14000000)throw Error('Invalid private binary');const bytes=Uint8Array.from(atob(downloaded.binary_base64),c=>c.charCodeAt(0));browserResult={...await extractAttachmentBytes(downloaded.file,bytes,args.course_id),source:'browser',status:'browser_success',binary_parsed:true,fetched_at:downloaded.fetched_at};}
+          catch{browserResult={status:'file_parse_failed',source:'browser',reason:'Authorised file downloaded but text could not be parsed; binary was not returned to MCP'};}
+        }else browserResult=downloaded;
+      }else browserResult=await browserService(env,'/v1/read',{...target,cache_ok:channel==='auto'});
+      browserState={status:browserResult.status,reason:browserResult.reason,retry_at:browserResult.retry_at};
+    }
     else browserState={status:'unsupported_readonly_target',reason:'Browser navigation for this operation has not been verified read-only; API and other browser targets remain independent.'};
   }
   const browserOK=browserResult?.status==='browser_success';
@@ -88,7 +100,7 @@ async function queryOnce(name,args,env) {
   }
   result.completeness = !(apiResult||browserOK) ? 'unavailable' : browserOK && (browserResult.dynamic_content_pending || browserResult.frames?.length || browserResult.media?.length) || emptyBody || apiResult?.assignments?.some(a=>a.feedback_access_error||a.quiz_submission_error||a.quiz_submission?.submissions?.some(s=>s.answers_status!=='answers_returned')) || apiResult?.submissions?.some(s=>s.answers_status!=='answers_returned') ? 'partial' : 'returned_resource_only';
   if(result.external_documents?.some(d=>d.status!=='document_success')||result.external_coverage?.google_links_found>3)result.completeness='partial';
-  if(name==='read_file' && !apiResult && browserOK) { result.completeness='partial'; result.notice='Only browser file landing page returned; attachment binary has not been parsed.'; }
+  if(name==='read_file' && !apiResult && browserOK && !browserResult.binary_parsed) { result.completeness='partial'; result.notice='Only browser file landing page returned; attachment binary has not been parsed.'; }
   result.reading_coverage=readingCoverage(name,result);
   const assistance=assistancePlan(name,args,result);
   if(assistance){
