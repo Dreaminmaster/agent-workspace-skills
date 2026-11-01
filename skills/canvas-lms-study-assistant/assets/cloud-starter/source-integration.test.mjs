@@ -43,3 +43,33 @@ test('browser download never accepts arbitrary hosts, credentials or nonstandard
  await assert.rejects(downloadOwnerFile({},{course_id:101,file_id:1,url:'https://evil.invalid'}),/invalid_target/);
  const r=await downloadOwnerFile({storedSession:async()=>null},{course_id:101,file_id:1});assert.equal(r.status,'requires_login');
 });
+
+test('course files belong to a course, not necessarily the student; hidden listing and lock are separate',async()=>{
+ const {inspectFileAccess}=await import('./cloud-browser/file-download.mjs');
+ assert.equal(inspectFileAccess({id:'123',user_id:999,locked_for_user:false,hidden_for_user:true},123).status,'allowed_metadata');
+ assert.equal(inspectFileAccess({id:123,user_id:999,locked:true,locked_for_user:false},123).status,'allowed_metadata');
+ assert.equal(inspectFileAccess({id:'124',locked_for_user:false},123).status,'file_id_mismatch');
+ assert.equal(inspectFileAccess({id:'123',locked_for_user:true},123).status,'file_locked');
+});
+test('Canvas download requests negotiate HTML routing and never mistake HTML for binary',async()=>{
+ const original=globalThis.fetch;let accept;
+ globalThis.fetch=async(url,options)=>{accept=options.headers.Accept;return new Response('login form',{headers:{'content-type':'text/html'}});};
+ try{await assert.rejects(download('https://canvas.sydney.edu.au/files/123/download','synthetic'),/HTML preview or login/);assert.match(accept,/^text\/html/);}finally{globalThis.fetch=original;}
+});
+
+test('browser file reader uses Chromium network, bounds bytes, closes streams and rejects foreign targets',async()=>{
+ const {browserFileGet}=await import('./cloud-browser/file-download.mjs');const calls=[];
+ const context={newPage:async()=>({close:async()=>calls.push('page_close')}),newCDPSession:async()=>({detach:async()=>calls.push('detach'),send:async(name,args)=>{calls.push(name);if(name==='Page.getFrameTree')return {frameTree:{frame:{id:'synthetic'}}};if(name==='Network.loadNetworkResource'){assert.equal(args.options.includeCredentials,true);return {resource:{success:true,httpStatusCode:200,headers:{'Content-Type':'application/pdf'},stream:'synthetic'}};}if(name==='IO.read')return {data:btoa('%PDF-synthetic'),base64Encoded:true,eof:true};return {};}})};
+ const response=await browserFileGet(context,'https://canvas.sydney.edu.au/files/123/download');assert.equal(new TextDecoder().decode(await response.body()),'%PDF-synthetic');assert.equal(response.headers()['content-type'],'application/pdf');assert.ok(calls.includes('IO.close'));assert.ok(calls.includes('page_close'));await assert.rejects(browserFileGet(context,'https://evil.invalid/file'));
+});
+test('API authorised signed download does not mix a web verifier with a bearer header',async()=>{
+ const original=globalThis.fetch;let headers;
+ globalThis.fetch=async(_url,options)=>{headers=options.headers;return new Response('synthetic data');};
+ try{await download('https://canvas.sydney.edu.au/files/123/download?verifier=synthetic','synthetic-token');assert.equal(headers.Authorization,undefined);}finally{globalThis.fetch=original;}
+});
+
+test('official preview fallback is lazy, authenticated by caller and never leaks its signed URL',async()=>{
+ const original=globalThis.fetch;let calls=0,previews=0;
+ globalThis.fetch=async(_url,options)=>{calls++;if(calls<3)return new Response(null,{status:406});assert.equal(options.headers.Authorization,undefined);return new Response('readable note');};
+ try{const result=await readAttachment({id:123,filename:'note.txt',url:'https://canvas.sydney.edu.au/files/123/download','content-type':'text/plain'},'synthetic',101,async()=>{previews++;return {public_url:'https://instructure-uploads-apse2.s3.amazonaws.com/note.txt?Signature=synthetic'};});assert.equal(result.text,'readable note');assert.equal(previews,1);assert.equal(JSON.stringify(result).includes('Signature'),false);}finally{globalThis.fetch=original;}
+});

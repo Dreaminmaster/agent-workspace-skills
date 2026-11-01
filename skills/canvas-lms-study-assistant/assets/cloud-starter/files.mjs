@@ -18,15 +18,21 @@ export async function download(urlString, token) {
   let url = new URL(urlString);
   for (let hop = 0; hop < 6; hop++) {
     if (!permitted(url)) throw new Error(`Canvas attachment download host is not approved by this integration: ${url.hostname}. No credential was sent to that host.`);
-    const headers = { Accept:'application/pdf,application/octet-stream,*/*', 'User-Agent': 'USYD-Canvas-Private/0.3 (personal read-only ChatGPT Sites integration)' };
-    if (url.origin === 'https://canvas.sydney.edu.au') headers.Authorization = `Bearer ${token}`;
+    const headers = { Accept:url.origin==='https://canvas.sydney.edu.au'?'text/html,application/xhtml+xml,*/*;q=0.8':'*/*', 'User-Agent': 'USYD-Canvas-Private/0.3 (personal read-only ChatGPT Sites integration)' };
+    if (url.origin === 'https://canvas.sydney.edu.au' && !url.searchParams.has('verifier')) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(url, { method: 'GET', redirect: 'manual', headers, signal: AbortSignal.timeout(25000) });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       if (!response.headers.has('location')) throw new Error('Canvas attachment redirect has no destination.');
       url = new URL(response.headers.get('location'), url);
       continue;
     }
-    if (!response.ok) throw new Error(`Canvas attachment download denied (${response.status}).`);
+    if (!response.ok){
+      const type=response.headers.get('content-type')||'unknown';
+      const sample=(await response.text()).slice(0,2048);
+      const signals=[...new Set((sample.match(/not acceptable|unknownformat|access denied|forbidden|unauthorized|unsupported|proxy|policy|gateway|blocked|csrf|login/gi)||[]).map(x=>x.toLowerCase()))].slice(0,6);
+      throw new Error(`Canvas attachment download denied (${response.status}); host=${url.hostname}; type=${type}; signals=${signals.join(',')||'none'}.`);
+    }
+    if((response.headers.get('content-type')||'').toLowerCase().includes('text/html'))throw Error('Canvas attachment returned an HTML preview or login page, not file bytes.');
     if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Canvas attachment exceeds the 10 MB extraction limit.');
     const reader = response.body.getReader();
     const chunks = []; let size = 0;
@@ -88,7 +94,7 @@ export async function readPublicGoogleDocument(link) {
   throw Error('Google document export redirect limit exceeded.');
 }
 
-export async function readAttachment(file, token, course) {
+export async function readAttachment(file, token, course, authorisedPreview) {
   if (file.locked_for_user) throw new Error('Canvas attachment is locked for your account.');
   if (!file.url) throw new Error('Canvas attachment has no authorised download URL.');
   if (file.size > MAX_BYTES) throw new Error('Canvas attachment exceeds the 10 MB extraction limit.');
@@ -101,7 +107,12 @@ export async function readAttachment(file, token, course) {
   let bytes;try{bytes=await download(file.url,token);}catch(error){
     if(!/^[1-9][0-9]*$/.test(String(course))||!Number.isSafeInteger(file.id)||file.id<1)throw error;
     // Only a second known first-party endpoint from authenticated metadata; never a caller URL.
-    try{bytes=await download(`https://canvas.sydney.edu.au/courses/${course}/files/${file.id}/download`,token);}catch(second){const diagnostic=e=>/^Canvas |^Unsupported /.test(e.message)?e.message:'Download processing failed';throw Error('Canvas attachment metadata path: '+diagnostic(error)+'; course download path: '+diagnostic(second));}
+    try{bytes=await download(`https://canvas.sydney.edu.au/courses/${course}/files/${file.id}/download`,token);}catch(second){
+      const diagnostic=e=>/^Canvas |^Unsupported /.test(e.message)?e.message:'Download processing failed';
+      let previewError;
+      if(authorisedPreview){try{const result=await authorisedPreview();if(typeof result?.public_url!=='string')throw Error('Canvas preview URL unavailable.');bytes=await download(result.public_url,token);}catch(third){previewError=diagnostic(third);}}
+      if(!bytes)throw Error('Canvas attachment metadata path: '+diagnostic(error)+'; course download path: '+diagnostic(second)+(previewError?'; authorised preview path: '+previewError:''));
+    }
   }
   return extractAttachmentBytes(file,bytes,course);
 }

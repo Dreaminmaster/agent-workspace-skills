@@ -141,7 +141,7 @@ export async function callCanvas(name, args, env) {
       if(String(group.course_id)!==course) throw new Error('Canvas group is not associated with this course.');
       file=await api(env, `/groups/${id(args.group_id)}/files/${id(args.file_id)}`);source_url=`${ORIGIN}/groups/${args.group_id}/files/${file.id}`;
     } else file=await api(env, `/courses/${course}/files/${id(args.file_id)}`);
-    let extracted;try{extracted=await readAttachment(file,env.CANVAS_API_TOKEN.trim(),course);}catch(error){throw new Error(/^Canvas |^Unsupported /.test(error.message)?error.message:`Canvas attachment processing failed (${error.name||'Error'}); no text was returned.`);}
+    let extracted;try{extracted=await readAttachment(file,env.CANVAS_API_TOKEN.trim(),course,()=>api(env,`/files/${id(args.file_id)}/public_url`));}catch(error){throw new Error(/^Canvas |^Unsupported /.test(error.message)?error.message:`Canvas attachment processing failed (${error.name||'Error'}); no text was returned.`);}
     return {...extracted,...(source_url?{source_url}:{}),...(args.conversation_id?{conversation_id:args.conversation_id,read_state_unchanged:true}:{})};
   }
   if (name === 'get_course_content') {

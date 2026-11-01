@@ -55,3 +55,8 @@ The original owner-private Site and separately deployed browser Worker were upda
 - This update did not repeat phone login, MFA or Mac-off acceptance. Earlier phone evidence does not prove new source coverage.
 
 See [universal sources](UNIVERSAL-SOURCES.md) for wiring and stopping conditions. The private production checkout passed 86 checks; the sanitized starter passed 63. These are offline engineering checks with synthetic data, not successful reads of the blocked resources.
+
+
+### 1 November attachment follow-up
+
+The earlier blocked PDF workflow was subsequently repaired in the same private deployment. Three owner-requested PDFs and a real DOCX passed connected MCP reads. The mistake was conflating hidden listing visibility with a reader lock; a separate InstFS CDN 406 needed real Chromium resource loading. Direct API-only downloads can still report the CDN rejection, while auto routing successfully uses the independent browser. See [universal sources](UNIVERSAL-SOURCES.md#attachment-correction-1-november-2026). The current public starter passes 68 offline checks; these checks are not live acceptance for a new owner.

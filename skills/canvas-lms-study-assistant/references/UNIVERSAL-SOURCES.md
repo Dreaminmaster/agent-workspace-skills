@@ -35,3 +35,12 @@ PebblePad is an owner-action interface, not an authenticated student portfolio r
 Notion is a delegation interface. Verify current Sites plugin eligibility and discover actual action bindings before adding a hosted connector. Never invent connector IDs or assume a client connection can be called by the Site server. Keep it `connector_required` when the binding is absent.
 
 For every provider record source URL, original read time, channel, cache status and completeness. Test real permitted resources and exact error responses; preserve denied results. The source deployment's actual SRES 403 and attachment 406/profile-verification failure remain blockers, despite successful deployment and offline tests. No migration or broader access is implied by this extension.
+
+
+## Attachment correction, 1 November 2026
+
+A real course attachment reported hidden_for_user=true but locked_for_user=false. Hidden listing visibility must not be treated as a reader lock. Normalize file IDs independently, reject a real viewer lock or mismatched resource, and never require a teacher-uploaded course file to be owned by the student. A denied file catalogue does not establish that linked files are unreadable. Discover file IDs from permitted pages, modules or assignment descriptions; read only requested attachments.
+
+The source case's HTTP 406 occurred at the authorised InstFS CDN. Server-side download requests, including the official single-file preview URL, were rejected; header changes alone did not fix it. The independent browser path now loads the authorised resource through Chromium Network.loadNetworkResource and bounded IO streaming, with normal browser credential handling and fixed egress guardrails. It does not disable security, log cookies or give the model arbitrary browser code. The API-only request can still report a real CDN 406; auto routing falls back to the independent browser.
+
+Three named PDFs and one DOCX passed actual MCP reads in the source deployment. This proves text-layer PDF and DOCX extraction for those samples, not OCR, all attachments, every student's permission or newly tested PPTX content. The sanitized starter has 68 offline checks after this correction; the private source has 91.
