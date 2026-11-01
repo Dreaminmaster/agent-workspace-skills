@@ -1,7 +1,8 @@
+import {visualPages} from './visual-policy.mjs';
 import { seal, unseal } from './policy.mjs';
 export const TASK_TTL_MS = 7 * 86400000;
 const toolNames = ['list_courses','get_course_content','get_assignments','read_file','get_messages'];
-const keys = ['course_id','kind','page','module_id','group_id','file_id','assignment_id','conversation_id','channel','include_linked_documents','include_past','include_feedback','include_submission','include_quiz_submission','quiz_id','discussion_id','query','week','url','scope'];
+const keys = ['course_id','kind','page','module_id','group_id','file_id','assignment_id','conversation_id','channel','include_linked_documents','include_past','include_feedback','include_submission','include_quiz_submission','quiz_id','discussion_id','query','week','url','scope','visual','pages','ocr','ocr_language'];
 export function taskInput(input) {
   if (!toolNames.includes(input?.tool) || !input.arguments || typeof input.arguments !== 'object' || Array.isArray(input.arguments)) throw Error('invalid_task');
   const args = {};
@@ -13,6 +14,10 @@ export function taskInput(input) {
       const u=new URL(v);
       if(u.origin!=='https://canvas.sydney.edu.au'||u.username||u.password||[...u.searchParams.keys()].some(k=>k!=='module_item_id')||u.hash)throw Error('invalid_task');
     }
+    if(['visual','pages','ocr','ocr_language'].includes(k)&&input.tool!=='read_file')throw Error('invalid_task');
+    if(['visual','ocr'].includes(k)&&typeof v!=='boolean')throw Error('invalid_task');
+    if(k==='pages')visualPages(v);
+    if(k==='ocr_language'&&!['eng','eng+chi_sim'].includes(v))throw Error('invalid_task');
     args[k]=v;
   }
   const stage = ['school_login','browser_wait','third_party_authorization','visible_interaction','authorised_import'].includes(input.stage) ? input.stage : 'visible_interaction';

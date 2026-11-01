@@ -12,3 +12,5 @@ test('non-sensitive pending task survives a new service instance, is encrypted a
  for(const args of [{token:'secret'},{url:'https://evil.example'},{url:'https://canvas.sydney.edu.au/files/1?verifier=secret'}])assert.throws(()=>taskInput({...input,arguments:args}));
  assert.throws(()=>taskInput({...input,tool:'execute_browser_code'}));
 });
+
+test('visual recovery keeps bounded page and OCR preferences without document bytes',()=>{const args={course_id:101,file_id:123,visual:true,pages:'1-3',ocr:true,ocr_language:'eng+chi_sim'};const task=taskInput({tool:'read_file',arguments:args,stage:'school_login'});assert.deepEqual(task.arguments,args);assert.throws(()=>taskInput({tool:'read_file',arguments:{...args,pages:'1-9'}}));assert.throws(()=>taskInput({tool:'read_file',arguments:{...args,binary_base64:'c2VjcmV0'}}));});

@@ -16,8 +16,10 @@ The PDF and OCR JS distributions are bundled, with upstream Apache-2.0 licenses 
 
 The analysis has a 65-second budget, four-megapixel render cap, ten-MB file limit and bounded image output. On failure, return text plus explicit unmet coverage. The source case's actual two-page schedule produced two image blocks and OCR confidence 92/93 after preprocessing; photo-background OCR confidence 28 was correctly left for review. These observations do not prove every scan/language/chart or phone client.
 
-The private source passes 96 offline checks; the independently instantiated sanitized starter passes 73. New-owner acceptance must still use their real files, ordinary Chat and iPhone. A fully raster-only source PDF, Chinese OCR, handwritten notes, independent numeric chart accuracy, Office graphics and iPhone image presentation were not separately accepted in the source case.
+The private source passes 97 offline checks; the independently instantiated sanitized starter passes 74. New-owner acceptance must still use their real files, ordinary Chat and iPhone. A fully raster-only source PDF, Chinese OCR, handwritten notes, independent numeric chart accuracy, Office graphics and iPhone image presentation were not separately accepted in the source case.
 
 Run the usual starter instantiation, local dependency setup, tests and private deployment. Text assets are allowed only inside cloud-browser/visual-assets; keep their pinned versions and licenses. Wrangler uses Text module rules for them. The Worker remains below the source account's free compressed-script size cap; no plan upgrade was performed.
 
 Official implementation references: [PDF.js rendering](https://mozilla.github.io/pdf.js/examples/) and [Tesseract.js API](https://github.com/naptha/tesseract.js/blob/master/docs/api.md).
+
+Recovery tasks retain bounded page ranges and OCR language/options, never document bytes or image payloads. A login/quota pause therefore does not lose the selected visual-reading stage.

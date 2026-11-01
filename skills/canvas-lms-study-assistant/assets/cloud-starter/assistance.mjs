@@ -19,7 +19,7 @@ export function readingCoverage(name,result) {
   return {status:states.some(s=>s.status==='unsupported_format')&&!bodyOK?'unsupported_format':result.status==='unavailable'?(denied?'permission_limited':'needs_owner_action'):states.some(s=>s.status!=='complete_resource_text')||result.completeness==='partial'||name==='read_file'?'partial':bodyOK?'complete_resource_text':'returned_collection',resources:states,scope:'No assertion of full course coverage. Complete resource text does not include unread attachments or third-party content.'};
 }
 export function assistancePlan(name,args,result) {
-  const browser=result.channels?.browser?.status;
+  const visual=result.visual_reading;const browser=['requires_login','login_in_progress','quota_exceeded','local_rate_wait'].includes(visual?.status)?visual.status:result.channels?.browser?.status;
   let stage,steps;
   if(browser==='requires_login'||browser==='login_in_progress'){
     stage='school_login';steps=['在 iPhone 用同一 ChatGPT 账号打开私人 Site。','打开或继续现有学校登录窗口，由本人完成 UniKey、密码及 MFA。','看到 Canvas 后返回 Site 点击“已完成学校登录”，再点击“继续待办读取”。'];
@@ -30,5 +30,5 @@ export function assistancePlan(name,args,result) {
   }else if((result.browser_supplement?.frames||result.frames||[]).some(f=>f.status!=='first_party_visible_body_read')){
     stage='visible_interaction';steps=['在 iPhone 打开原始 Canvas 页面，确认第三方工具及其独立登录要求。','LTI 启动可能写入访问或进度记录；系统不会自动执行。需要本人在正常界面操作并确认。','当前后端不支持该工具内部读取。本人可授权导出/上传已有资料；教师未开放的内容保持受限。'];
   }else return null;
-  return {status:'needs_owner_action',stage,site_url:SITE+'/query',retry_at:result.channels?.browser?.retry_at||null,steps,resume_call:{tool:name,arguments:args},automatic_chat_push:false,notice:'Site resumes only when you click; ChatGPT can repeat this same call after you reply “继续”. Login does not widen resource permissions.'};
+  return {status:'needs_owner_action',stage,site_url:SITE+'/query',retry_at:result.visual_reading?.retry_at||result.channels?.browser?.retry_at||null,steps,resume_call:{tool:name,arguments:args},automatic_chat_push:false,notice:'Site resumes only when you click; ChatGPT can repeat this same call after you reply “继续”. Login does not widen resource permissions.'};
 }
