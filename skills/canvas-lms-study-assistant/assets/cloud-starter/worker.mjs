@@ -1,3 +1,4 @@
+import {mcpFileContent} from './visual-result.mjs';
 import { routedTools, sourceTools, authTool, query } from './router.mjs';
 import { browserRoute, browserService, fallbackTarget, indexRead } from './browser.mjs';
 
@@ -32,7 +33,7 @@ export default {
           if (![authTool,...sourceTools,...routedTools].some(t => t.name === message.params?.name)) return Response.json({ jsonrpc:'2.0',id:message.id,error:{code:-32602,message:'Unknown tool'} });
           try {
             const data = await query(message.params.name,message.params.arguments||{},env);
-            result = {isError:data.status==='unavailable',content:[{type:'text',text:JSON.stringify(data)}]};
+            result = {isError:data.status==='unavailable',content:mcpFileContent(data)};
           } catch { result = {isError:true,content:[{type:'text',text:'Invalid or unsupported Canvas query. No credentials were changed.'}]}; }
 
         }

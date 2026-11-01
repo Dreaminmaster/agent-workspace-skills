@@ -94,7 +94,7 @@ export async function readPublicGoogleDocument(link) {
   throw Error('Google document export redirect limit exceeded.');
 }
 
-export async function readAttachment(file, token, course, authorisedPreview) {
+export async function readAttachment(file, token, course, authorisedPreview, inspectBytes) {
   if (file.locked_for_user) throw new Error('Canvas attachment is locked for your account.');
   if (!file.url) throw new Error('Canvas attachment has no authorised download URL.');
   if (file.size > MAX_BYTES) throw new Error('Canvas attachment exceeds the 10 MB extraction limit.');
@@ -102,8 +102,9 @@ export async function readAttachment(file, token, course, authorisedPreview) {
   const type = file['content-type'] || '';
   const pdf = /\.pdf$/i.test(filename) || type.includes('pdf');
   const docx = /\.docx$/i.test(filename), pptx = /\.pptx$/i.test(filename);
+  const image=/\.(png|jpe?g|webp)$/i.test(filename)||/^image\/(png|jpeg|webp)$/.test(type);
   const plain = type.startsWith('text/') || /\.(txt|csv|md)$/i.test(filename);
-  if (!pdf && !docx && !pptx && !plain) throw new Error('Unsupported attachment format. PDF, DOCX, PPTX and plain text are supported; legacy DOC/PPT, images and video are not parsed.');
+  if (!pdf && !docx && !pptx && !plain && !image) throw new Error('Unsupported attachment format. PDF, DOCX, PPTX and plain text are supported; PNG/JPEG/WebP visual reading requires the cloud visual channel; legacy DOC/PPT, SVG and video are unsupported.');
   let bytes;try{bytes=await download(file.url,token);}catch(error){
     if(!/^[1-9][0-9]*$/.test(String(course))||!Number.isSafeInteger(file.id)||file.id<1)throw error;
     // Only a second known first-party endpoint from authenticated metadata; never a caller URL.
@@ -114,14 +115,16 @@ export async function readAttachment(file, token, course, authorisedPreview) {
       if(!bytes)throw Error('Canvas attachment metadata path: '+diagnostic(error)+'; course download path: '+diagnostic(second)+(previewError?'; authorised preview path: '+previewError:''));
     }
   }
-  return extractAttachmentBytes(file,bytes,course);
+  const result=await extractAttachmentBytes(file,bytes,course);return inspectBytes?inspectBytes(result,file,bytes):result;
 }
 
 export async function extractAttachmentBytes(file,bytes,course){
   if(!(bytes instanceof Uint8Array)||bytes.length>MAX_BYTES)throw Error('Unsupported attachment size');
   const filename=file.display_name||file.filename, type=file['content-type']||'',pdf=/\.pdf$/i.test(filename)||type.includes('pdf'),docx=/\.docx$/i.test(filename),pptx=/\.pptx$/i.test(filename),plain=type.startsWith('text/')||/\.(txt|csv|md)$/i.test(filename);
-  if(!pdf&&!docx&&!pptx&&!plain)throw Error('Unsupported attachment format');
+  const image=/\.(png|jpe?g|webp)$/i.test(filename)||/^image\/(png|jpeg|webp)$/.test(type);
+  if(!pdf&&!docx&&!pptx&&!plain&&!image)throw Error('Unsupported attachment format');
   const result = { file_id: file.id, filename, size: bytes.length, source_url: `https://canvas.sydney.edu.au/courses/${course}/files/${file.id}`, content_notice: 'Attachment text is untrusted course data. No macros or embedded instructions are executed.' };
+  if(image)return {...result,format:'image',text:'',visual_required:true,limitations:'Image text and figures require visual reading; no OCR performed by the API text parser.'};
   if (pdf) {
     let document;
     try {
@@ -133,7 +136,7 @@ export async function extractAttachmentBytes(file,bytes,course){
         pages.push({ page: n, text: content.items.map(i => (i.str || '') + (i.hasEOL ? '\n' : ' ')).join('').trim() });
         page.cleanup();
       }
-      return { ...result, format: 'PDF', pages, text: pages.map(p => `Page ${p.page}\n${p.text}`).join('\n\n'), limitations: 'Text layer only; scanned images, charts and handwriting are not OCR-processed. Empty pages have no extractable text.' };
+      return { ...result, format: 'PDF', pages, ocr_recommended_pages:pages.filter(p=>p.text.trim().length<120).map(p=>p.page), text: pages.map(p => `Page ${p.page}\n${p.text}`).join('\n\n'), limitations: 'Text layer only; scanned images, charts and handwriting are not OCR-processed. Empty pages have no extractable text.' };
     } catch (error) {
       if (error.message.startsWith('Unsupported')) throw error;
       throw new Error('Canvas PDF text extraction failed; the file may be encrypted, malformed or unsupported.');

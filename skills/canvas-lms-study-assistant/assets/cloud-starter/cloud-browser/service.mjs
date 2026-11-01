@@ -1,5 +1,5 @@
 import {readStudentPortal} from './student-portal.mjs';
-import {downloadOwnerFile} from './file-download.mjs';
+import {downloadOwnerFile,analyseAuthorisedBytes} from './file-download.mjs';
 import {configuredAutofill,advanceAutofill,schoolFormProfile} from './autofill.mjs';
 import { usableCachedRead,cachedResult } from './cache.mjs';
 import { sessionStatus, retryDeadline } from './session.mjs';
@@ -383,6 +383,7 @@ export class OwnerState extends DurableObject {
         case '/v1/tasks/update': return reply(await updateTask(this.ctx.storage,this.env.STATE_KEY,data.id,data.status));
         case '/v1/revoke': await this.closeLogin(); await this.invalidateSession('owner_revoked'); return reply({ status: 'revoked' });
         case '/v1/sources/student-portal': return reply(await readStudentPortal(this,data));
+        case '/v1/files/analyse': return reply(await analyseAuthorisedBytes(this,data));
         case '/v1/files/download': return reply(await downloadOwnerFile(this,data));
         case '/v1/read': return await this.read(data);
         case '/v1/audit': return reply({ events: await this.ctx.storage.get('audit') || [] });

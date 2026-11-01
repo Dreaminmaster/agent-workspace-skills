@@ -23,7 +23,7 @@ test('reserves actions before transmission; inspection and checkpoint contain no
 });
 test('MFA display never invokes approval or stores the confirmation number',async()=>{
  let evaluated=0,writes=0;const login=fresh(),r=await advanceAutofill({url:()=> 'https://sso.sydney.edu.au/',evaluate:async()=>{evaluated++;return {phase:'mfa_wait',confirmation_number:'42'};}},login,env,async()=>writes++);
- assert.equal(r.status,'mfa_required');assert.equal(r.confirmation_number,'42');assert.equal(evaluated,1);assert.equal(writes,0);assert.equal(JSON.stringify(login).includes('42'),false);
+ assert.equal(r.status,'mfa_required');assert.equal(r.confirmation_number,'42');assert.equal(evaluated,1);assert.equal(writes,0);assert.equal(JSON.stringify(login).includes('confirmation_number'),false);assert.equal(Object.values(login).includes('42'),false);
 });
 test('unknown form fails closed without submitting credentials or repeating actions',async()=>{
  let calls=0;const login=fresh(),page={url:()=> 'https://sso.sydney.edu.au/',evaluate:async()=>{calls++;return {phase:'manual'};}};

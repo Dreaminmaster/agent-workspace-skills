@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {build} from '../node_modules/esbuild/lib/main.js';
 import {seal} from './policy.mjs';
 // Exercise actual service methods offline. Provider stubs throw if an acquisition is attempted.
-const built=await build({entryPoints:[new URL('./service.mjs',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'offline-provider',setup(b){
+const built=await build({entryPoints:[new URL('./service.mjs',import.meta.url).pathname],bundle:true,write:false,loader:{'.txt':'text'},format:'esm',platform:'node',plugins:[{name:'offline-provider',setup(b){
  b.onResolve({filter:/^(cloudflare:workers|@cloudflare\/playwright)$/},a=>({path:a.path,namespace:'offline'}));
  b.onLoad({filter:/.*/,namespace:'offline'},a=>({contents:a.path==='cloudflare:workers'?`export class DurableObject{constructor(ctx,env){this.ctx=ctx;this.env=env;}}`:`export const acquire=async binding=>{const r=await binding.fetch('https://offline.invalid/acquire');if(!r.ok)throw Error('Unable to create new browser: code: '+r.status+': message: '+await r.text());return {sessionId:'synthetic'};}, launch=acquire, connect=async()=>({newBrowserCDPSession:async()=>({send:async()=>{}}),close:async()=>{}}),limits=acquire,history=acquire;`}));
 }}]});

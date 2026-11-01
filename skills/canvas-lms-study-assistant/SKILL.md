@@ -35,6 +35,8 @@ For a course-generic SRES and multi-source upgrade, read [universal sources](ref
 
 For browser/session implementation, mobile handoff and the known Okta selection pitfall, read [browser architecture](references/BROWSER-FALLBACK-ROADMAP.md).
 
+For scanned PDF pages, standalone images or figures/charts, read [visual reading](references/VISUAL-READING.md). Request at most three pages, inspect actual MCP image blocks and treat low-confidence OCR as reviewable evidence rather than authoritative text.
+
 ## Deliver accurately
 
 Report `PASS`, `PARTIAL`, `FAIL`, `BLOCKED` or `NOT TESTED` per feature, with channel and actual evidence. Stored cookies do not prove current authentication; a detected challenge does not prove that the phone displayed its number or received a notification. Profile confirmation plus a **new** save event, a new restored read and remote-close evidence establish the tested recovery chain.

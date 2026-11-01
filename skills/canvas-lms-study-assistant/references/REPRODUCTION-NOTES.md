@@ -60,3 +60,8 @@ See [universal sources](UNIVERSAL-SOURCES.md) for wiring and stopping conditions
 ### 1 November attachment follow-up
 
 The earlier blocked PDF workflow was subsequently repaired in the same private deployment. Three owner-requested PDFs and a real DOCX passed connected MCP reads. The mistake was conflating hidden listing visibility with a reader lock; a separate InstFS CDN 406 needed real Chromium resource loading. Direct API-only downloads can still report the CDN rejection, while auto routing successfully uses the independent browser. See [universal sources](UNIVERSAL-SOURCES.md#attachment-correction-1-november-2026). The current public starter passes 68 offline checks; these checks are not live acceptance for a new owner.
+
+
+### 1 November visual extension
+
+The same private connector now returns OCR text plus native MCP page-image blocks. Actual PDF pages and a course JPG were processed. Table OCR confidence improved from 30/76 to 92/93 using sparse-text segmentation and line removal; this is engine confidence, not a validated accuracy percentage. Low-confidence photo OCR remained review_required and its merged text was empty, while the real image was returned. API course reads remained normal. See [visual reading](VISUAL-READING.md) for exact scope and untested cases.

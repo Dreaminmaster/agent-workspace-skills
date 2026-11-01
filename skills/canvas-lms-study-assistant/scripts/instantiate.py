@@ -47,7 +47,7 @@ def main():
         if not f.is_file():
             continue
         relative = f.relative_to(source)
-        if not (f.suffix == '.mjs' or f.name in ('package.json', 'package-lock.json', 'wrangler.jsonc', '.gitignore', 'hosting.json')):
+        if not (f.suffix == '.mjs' or (f.suffix == '.txt' and relative.parts[:2] == ('cloud-browser', 'visual-assets')) or f.name in ('package.json', 'package-lock.json', 'wrangler.jsonc', '.gitignore', 'hosting.json')):
             raise RuntimeError('Unexpected template file: ' + str(relative))
         text = f.read_text()
         for old, new in replacements.items():

@@ -1,3 +1,4 @@
+import {VISUAL_HOSTS,visualPages} from './visual-policy.mjs';
 import {CANVAS,READ_DOMAINS,base64} from './policy.mjs';
 const LIMIT=10*1024*1024;
 const stores=new Set(['instructure-uploads-apse2.s3.ap-southeast-2.amazonaws.com','instructure-uploads-apse2.s3-ap-southeast-2.amazonaws.com','instructure-uploads-apse2.s3.amazonaws.com','instructure-uploads.s3.amazonaws.com']);
@@ -26,13 +27,14 @@ export function inspectFileAccess(file,requested){
  return {status:'allowed_metadata',hidden_from_listing:file.hidden_for_user===true};
 }
 export async function downloadOwnerFile(owner,data){
- if(!Number.isSafeInteger(data.course_id)||data.course_id<1||!Number.isSafeInteger(data.file_id)||data.file_id<1||Object.keys(data).some(k=>!['course_id','file_id'].includes(k)))throw Error('invalid_target');
+ if(!Number.isSafeInteger(data.course_id)||data.course_id<1||!Number.isSafeInteger(data.file_id)||data.file_id<1||Object.keys(data).some(k=>!['course_id','file_id','visual','pages','ocr','ocr_language'].includes(k)))throw Error('invalid_target');
+ visualPages(data.pages);if(data.visual!==undefined&&typeof data.visual!=='boolean'||data.ocr!==undefined&&typeof data.ocr!=='boolean'||data.ocr_language!==undefined&&!['eng','eng+chi_sim'].includes(data.ocr_language))throw Error('invalid_visual_options');
  const source_url=`${CANVAS}/courses/${data.course_id}/files/${data.file_id}`,fail=(status,reason,extra={})=>({status,source:'browser',source_url,reason,...extra});
  const session=await owner.storedSession();if(!session)return fail('requires_login','School browser session unavailable; API remains independent');
  const backoff=await owner.ctx.storage.get('browser_backoff');if(backoff?.retry_at>Date.now())return fail('quota_exceeded','Browser backoff active',{retry_at:new Date(backoff.retry_at).toISOString()});
  if((await owner.ctx.storage.get('login'))?.expires_at>Date.now())return fail('login_in_progress','Finish the current owner login first');
  const deadline=Date.now()+30000;
- const {launch}=await import('@cloudflare/playwright');const browser=await owner.countedAcquire('owner_file_download',()=>launch(owner.browserBinding,{guardrails:{allowedDomains:READ_DOMAINS}}));
+ const {launch}=await import('@cloudflare/playwright');const browser=await owner.countedAcquire('owner_file_download',()=>launch(owner.browserBinding,{guardrails:{allowedDomains:[...READ_DOMAINS,...VISUAL_HOSTS]}}));
  try{
   const context=await browser.newContext({storageState:session.state,serviceWorkers:'block'}),client=context.request;
   if(!client||typeof client.get!=='function')return fail('unsupported_runtime','This Playwright runtime does not support authorised file requests');
@@ -64,7 +66,18 @@ export async function downloadOwnerFile(owner,data){
    if(binary)break;
   }
   if(!binary)return fail('download_denied','Authorised preview and file download paths failed',{download_errors:errors.slice(0,4),metadata_flags:{id_type:typeof file.id,hidden_from_listing:access.hidden_from_listing,locked_for_user:false}});
+  let visual_result;
+  if(/\.(?:pdf|png|jpe?g|webp)$/i.test(file.filename||'')||/^(?:application\/pdf|image\/(?:png|jpeg|webp))$/.test(file['content-type']||'')){const {readVisualAttachment}=await import('./visual.mjs');visual_result=await readVisualAttachment(browser,file,binary,data);}
   await owner.persist(context);await owner.audit('file_download','downloaded',{course_id:data.course_id,kind:'file'});
-  return {status:'file_downloaded',source:'browser',source_url,fetched_at:new Date().toISOString(),file:{id:data.file_id,size:binary.length,filename:file.filename,display_name:file.display_name,'content-type':file['content-type']},binary_base64:base64(binary),notice:'Private service-to-Site bytes only; never forward binary or cookies to MCP'};
+  return {status:'file_downloaded',source:'browser',source_url,fetched_at:new Date().toISOString(),visual_result,file:{id:data.file_id,size:binary.length,filename:file.filename,display_name:file.display_name,'content-type':file['content-type']},binary_base64:base64(binary),notice:'Private service-to-Site bytes only; never forward binary or cookies to MCP'};
  }finally{let confirmed=false;try{await browser.close();confirmed=true;}finally{await owner.ctx.storage.put('last_browser_release',{at:new Date().toISOString(),kind:'file_download',confirmed});}}
+}
+
+export async function analyseAuthorisedBytes(owner,data){
+ if(Object.keys(data).some(k=>!['file','binary_base64','visual','pages','ocr','ocr_language'].includes(k))||!Number.isSafeInteger(data.file?.id)||typeof data.file?.filename!=='string'||data.file.filename.length>500||typeof data.binary_base64!=='string'||data.binary_base64.length>14000000||!/^[A-Za-z0-9+/]*={0,2}$/.test(data.binary_base64))throw Error('invalid_visual_payload');
+ visualPages(data.pages);if(data.visual!==undefined&&typeof data.visual!=='boolean'||data.ocr!==undefined&&typeof data.ocr!=='boolean'||data.ocr_language!==undefined&&!['eng','eng+chi_sim'].includes(data.ocr_language))throw Error('invalid_visual_options');
+ const bytes=Uint8Array.from(atob(data.binary_base64),c=>c.charCodeAt(0));if(bytes.length>LIMIT)throw Error('file_too_large');
+ const {launch}=await import('@cloudflare/playwright'),browser=await owner.countedAcquire('file_visual_ocr',()=>launch(owner.browserBinding,{guardrails:{allowedDomains:VISUAL_HOSTS}}));
+ try{const {readVisualAttachment}=await import('./visual.mjs');return await readVisualAttachment(browser,data.file,bytes,data);}
+ finally{let confirmed=false;try{await browser.close();confirmed=true;}finally{await owner.ctx.storage.put('last_browser_release',{at:new Date().toISOString(),kind:'file_visual_ocr',confirmed});}}
 }
