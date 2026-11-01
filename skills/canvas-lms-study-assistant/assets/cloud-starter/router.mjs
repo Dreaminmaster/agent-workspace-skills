@@ -116,7 +116,7 @@ async function queryOnce(name,args,env) {
     const v=result.visual_reading||result.browser_supplement?.visual_reading;
     if(v){result.routing.visual='cloud_browser_ocr';result.visual_coverage={status:v.status,processed_pages:v.processed_pages||[],pending_pages:v.pending_pages||[],scope:'Selected rendered pages only. OCR is approximate; chart interpretation uses the returned images.'};if(v.status!=='visual_success'||v.pending_pages?.length)result.completeness='partial';}
     if(channel==='api'&&(args.visual||result.ocr_recommended_pages?.length||result.format==='image')){result.visual_coverage={status:'visual_requires_cloud_browser',scope:'API-only request: OCR and image evidence were not obtained.'};result.completeness='partial';}
-    if(result.format==='image'&&!result.visuals?.length)result.completeness='partial';
+    if(result.format==='image'&&!result.visuals?.length){result.completeness='partial';result.status='partial';result.visual_notice='Image metadata/bytes were obtained, but no image evidence was returned. Do not claim visual reading succeeded.';}
   }
   result.reading_coverage=readingCoverage(name,result);
   const assistance=assistancePlan(name,args,result);
